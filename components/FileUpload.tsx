@@ -23,30 +23,27 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataUpload }) => {
       const workbook = XLSX.read(arrayBuffer, { type: "array" });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      if (jsonData.length === 0) {
-        throw new Error("Nenhum dado encontrado no arquivo.");
-      }
+      // Lê como matriz (linhas e colunas brutas)
+      const raw = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-      // Função para remover acentos e padronizar maiúsculas
       const normalize = (str: string) =>
-        str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+        str?.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
-      // Lista de campos obrigatórios (normalizados)
       const requiredFields = ["CAMPANHA", "PRACA", "MEIO", "VEICULO", "MES"];
 
-      // Normaliza todos os registros
-      const normalizedData = jsonData.map((registro: any) => {
-        const novoRegistro: any = {};
-        Object.keys(registro).forEach(chaveOriginal => {
-          const chaveNormalizada = normalize(chaveOriginal);
-          novoRegistro[chaveNormalizada] = registro[chaveOriginal];
-        });
-        return novoRegistro;
-      });
+      const headersRaw = raw[0] as string[];
+      const headers = headersRaw.map(normalize);
+      const dataRows = raw.slice(1);
 
-      // Valida o primeiro registro
+      const normalizedData = (dataRows as any[]).map(row => {
+
+        const obj: any = {};
+        headers.forEach((key, idx) => {
+          obj[key] = row[idx];
+        });
+        return obj;
+      });
       const firstRecord = normalizedData[0];
       const missingFields = requiredFields.filter(field => !(field in firstRecord));
 
@@ -54,7 +51,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataUpload }) => {
         throw new Error(`Campos obrigatórios ausentes: ${missingFields.join(", ")}`);
       }
 
-      // Sucesso: envia os dados normalizados
       onDataUpload(normalizedData as MediaPlanData[]);
     } catch (error) {
       console.error("Erro ao processar o arquivo:", error);
@@ -138,8 +134,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataUpload }) => {
           <ul className="list-disc list-inside text-yellow-800 space-y-1">
             <li>✓ Arquivo Excel (.xlsx ou .xls)</li>
             <li>✓ Primeira aba da planilha será usada</li>
-            <li>✓ Campos obrigatórios: Campanha, Praça, Meio, Veículo, Mês</li>
-            <li>✓ Letras e acentos não causam erro</li>
+            <li>✓ Cabeçalhos com: Campanha, Praça, Meio, Veículo, Mês</li>
+            <li>✓ Letras, espaços e acentos não causam erro</li>
           </ul>
         </div>
       </div>
