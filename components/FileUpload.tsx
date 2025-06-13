@@ -29,15 +29,28 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataUpload }) => {
         throw new Error("Nenhum dado encontrado no arquivo.");
       }
 
+      const normalize = (str: string) =>
+        str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+
       const requiredFields = ["CAMPANHA", "PRACA", "MEIO", "VEICULO", "MES"];
-      const firstRecord = jsonData[0] as any;
+
+      const normalizedData = jsonData.map((registro: any) => {
+        const novoRegistro: any = {};
+        Object.keys(registro).forEach(chaveOriginal => {
+          const chaveLimpa = normalize(chaveOriginal);
+          novoRegistro[chaveLimpa] = registro[chaveOriginal];
+        });
+        return novoRegistro;
+      });
+
+      const firstRecord = normalizedData[0];
       const missingFields = requiredFields.filter(field => !(field in firstRecord));
 
       if (missingFields.length > 0) {
         throw new Error(`Campos obrigatórios ausentes: ${missingFields.join(", ")}`);
       }
 
-      onDataUpload(jsonData as MediaPlanData[]);
+      onDataUpload(normalizedData as MediaPlanData[]);
     } catch (error) {
       console.error("Erro ao processar o arquivo:", error);
       alert(error instanceof Error ? error.message : "Erro ao processar o arquivo.");
@@ -121,7 +134,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataUpload }) => {
             <li>✓ Arquivo Excel (.xlsx ou .xls)</li>
             <li>✓ Primeira aba da planilha será usada</li>
             <li>✓ Campos obrigatórios: CAMPANHA, PRACA, MEIO, VEICULO, MES</li>
-            <li>✓ Números devem estar formatados corretamente</li>
+            <li>✓ Letras maiúsculas ou acentos não causam problema</li>
           </ul>
         </div>
       </div>
